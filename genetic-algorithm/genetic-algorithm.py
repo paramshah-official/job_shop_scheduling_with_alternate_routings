@@ -121,13 +121,178 @@ def elitist_selection(population):
     - A list of dictionaries representing the elite chromosomes.
     """
     # Sort the population by the fitness value in ascending order (since lower fitness is better)
-    population = sorted(population, key=lambda x: x['fitness'])
+    new_population = sorted(population, key=lambda x: x['fitness'])
 
     # Select the top N elites
     num_elites = parameters.POPULATION_SIZE
-    elites = population[:num_elites]
+    elites = new_population[:num_elites]
 
     return elites
+
+
+def crossover(parent1, parent2, job_info):
+    def one_point_crossover():
+        """
+        Performs a one-point crossover between two parent chromosomes.
+
+        Args:
+        - parent1, parent2: Parent chromosomes, each a dictionary with 'assignment' and 'sequence'.
+
+        Returns:
+        - Two offspring chromosomes as dictionaries with 'assignment' and 'sequence'.
+        """
+        # Ensure the crossover point is within the range of the chromosomes' lengths
+        crossover_point = random.randint(1, len(parent1['assignment']) - 2)
+
+        # Create offspring by swapping subsequences after the crossover point
+        offspring1_assignment = parent1['assignment'][:crossover_point] + parent2['assignment'][crossover_point:]
+        offspring2_assignment = parent2['assignment'][:crossover_point] + parent1['assignment'][crossover_point:]
+
+        return offspring1_assignment, offspring2_assignment
+
+    def partial_matched_crossover():
+        """
+        Performs a Partial Matched Crossover (PMX) on the sequence part of two parent chromosomes.
+
+        Args:
+        - parent1, parent2: Parent chromosomes, each a dictionary with 'sequence'.
+
+        Returns:
+        - Two offspring chromosomes as dictionaries with 'sequence' only.
+        """
+        # Determine the crossover points
+        size = len(parent1['sequence'])
+        cx_point1, cx_point2 = sorted(random.sample(range(size), 2))
+
+        # Create offspring sequence placeholders
+        offspring1_seq = [None] * size
+        offspring2_seq = [None] * size
+
+        # Copy the segment between crossover points from each parent to each offspring
+        for i in range(cx_point1, cx_point2 + 1):
+            offspring1_seq[i] = parent2['sequence'][i]
+            offspring2_seq[i] = parent1['sequence'][i]
+
+        # Fill in the remaining positions with the elements from the respective parent,
+        # ensuring that no duplicates occur.
+        for i in range(size):
+            if not offspring1_seq[i]:
+                if parent1['sequence'][i] not in offspring1_seq:
+                    offspring1_seq[i] = parent1['sequence'][i]
+                else:
+                    # Find the element in parent2 that corresponds to this position and use it if not already in offspring
+                    for j in range(size):
+                        if parent2['sequence'][j] == parent1['sequence'][i]:
+                            mapping_element = parent1['sequence'][j]
+                            if mapping_element not in offspring1_seq:
+                                offspring1_seq[i] = mapping_element
+                                break
+            if not offspring2_seq[i]:
+                if parent2['sequence'][i] not in offspring2_seq:
+                    offspring2_seq[i] = parent2['sequence'][i]
+                else:
+                    for j in range(size):
+                        if parent1['sequence'][j] == parent2['sequence'][i]:
+                            mapping_element = parent2['sequence'][j]
+                            if mapping_element not in offspring2_seq:
+                                offspring2_seq[i] = mapping_element
+                                break
+
+        # Handle any None values by assigning missing elements (this could happen in edge cases)
+        remaining_elements1 = [item for item in parent1['sequence'] if item not in offspring1_seq]
+        remaining_elements2 = [item for item in parent2['sequence'] if item not in offspring2_seq]
+        for i in range(size):
+            if offspring1_seq[i] is None:
+                offspring1_seq[i] = remaining_elements1.pop(0)
+            if offspring2_seq[i] is None:
+                offspring2_seq[i] = remaining_elements2.pop(0)
+
+        return offspring1_seq, offspring2_seq
+
+    offspring1_assignment, offspring2_assignment = one_point_crossover()
+    offspring1_seq, offspring2_seq = partial_matched_crossover()
+
+    offspring1 = {'assignment': offspring1_assignment, 'sequence': offspring1_seq}
+    offspring1 = repair_chromosome(offspring1, job_info=job_info)
+    offspring1['fitness'] = calculate_fitness(offspring1, job_info=job_info)
+
+    offspring2 = {'assignment': offspring2_assignment, 'sequence': offspring2_seq}
+    offspring2 = repair_chromosome(offspring2, job_info=job_info)
+    offspring2['fitness'] = calculate_fitness(offspring2, job_info=job_info)
+
+    return offspring1, offspring2
+
+def mutate(chromosome, job_info, num_machines):
+    mutation_type = random.choice(['assignment', 'sequence'])
+    mutated_chromosome = chromosome
+
+    if mutation_type == 'assignment':
+        # Randomly choose an operation and assign it to a new machine
+        op_index = random.randint(0, len(chromosome['assignment']) - 1)
+        mutated_chromosome['assignment'][op_index] = random.randint(1, num_machines)
+    else:
+        # Swap two operations in the sequence
+        i, j = random.sample(range(len(chromosome['sequence'])), 2)
+        mutated_chromosome['sequence'][i], mutated_chromosome['sequence'][j] = mutated_chromosome['sequence'][j], mutated_chromosome['sequence'][i]
+
+    mutated_chromosome = repair_chromosome(chromosome, job_info)
+    mutated_chromosome['fitness'] = calculate_fitness(chromosome=chromosome, job_info=job_info)
+
+    return mutated_chromosome
+
+
+def genetic_algorithm(job_info, num_machines):
+    """
+    Executes the genetic algorithm for job shop scheduling.
+
+    Args:
+    - jobs_operations_dict: A dictionary mapping jobs to their number of operations.
+    - num_machines: The number of machines available.
+    - pop_size: The size of the population.
+    - crossover_rate: The probability of crossover.
+    - mutation_rate: The probability of mutation.
+    - termination_criterion: The number of generations to run the algorithm for.
+
+    Returns:
+    - The best chromosome (solution) found and its fitness.
+    """
+
+    pop_size = parameters.POPULATION_SIZE
+    jobs_operations_dict = job_info
+    crossover_rate = parameters.CROSSOVER_RATE
+    mutation_rate = parameters.MUTATION_RATE
+    termination_criterion = parameters.TERMINATION_GENERATION
+
+
+    # Generate the initial population
+    population = generate_initial_population_v2(jobs_operations_dict, num_machines)
+
+    # Main GA loop
+    for generation in range(termination_criterion):
+        # Selection
+        population = elitist_selection(population)  # Example: keeping 2 elites
+
+        # Crossover
+        for ind in range(0, len(population) - 1, 2):
+            if random.random() < crossover_rate:
+                parent1, parent2 = population[ind], population[ind + 1]
+                offspring1, offspring2 = crossover(parent1, parent2, job_info)
+                population += [offspring1, offspring2]
+
+        # Mutation
+        mutated_pop = []
+        for chromosome in population:
+            if random.random() < mutation_rate:
+                mutated_chromosome = mutate(chromosome, job_info, num_machines)
+                mutated_pop.append(mutated_chromosome)
+
+        population += mutated_pop
+
+    # Find the best solution
+    best_chromosome = min(population, key=lambda x: x['fitness'])
+    return best_chromosome, best_chromosome['fitness']
+
+
 
 # Example usage
 jobs_operations_dict = {'J1': [{1: 2}, {1: 3, 2: 2}],
@@ -136,11 +301,18 @@ jobs_operations_dict = {'J1': [{1: 2}, {1: 3, 2: 2}],
                         }
 num_machines = 2
 
+# Assuming operations_data and job_machine_constraints are defined
+best_solution, best_fitness = genetic_algorithm(jobs_operations_dict, num_machines)
+print("Best Solution:", best_solution)
+print("Best Fitness:", best_fitness)
+
 # Generate the initial population
 initial_population_v2 = generate_initial_population_v2(jobs_operations_dict, num_machines)
 print('Initial Population: ')
 for i, chromosome in enumerate(initial_population_v2, start=1):
     print(f"Chromosome {i}: {chromosome}")
+
+print(crossover(initial_population_v2[0], initial_population_v2[1], jobs_operations_dict))
 
 # Test Chromosome
 # chromosome = {'assignment': [1, 1, 2, 1, 2, 1], 'sequence': [1, 2, 3, 4, 5, 6]}
