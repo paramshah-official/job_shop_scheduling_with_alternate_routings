@@ -74,7 +74,6 @@ def calculate_fitness(chromosome, job_info):
 
         # Assigning the max completion time to time_taken
         time_taken = max(time_taken, curr_operation_completion_time)
-        completion_times.append(curr_operation_completion_time)
 
     return time_taken
 
