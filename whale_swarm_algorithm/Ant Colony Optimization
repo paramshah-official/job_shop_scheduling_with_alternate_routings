@@ -1,0 +1,80 @@
+import numpy as np
+import random
+
+def initialize_pheromones(num_jobs, num_machines):
+    return np.ones((num_jobs, num_machines))
+
+def construct_solution(job_info, num_machines, pheromones, alpha=1.0, beta=2.0):
+    num_jobs = len(job_info)
+    solution = np.zeros((num_jobs, num_machines), dtype=int)
+
+    for job_idx in range(num_jobs):
+        job = list(job_info.keys())[job_idx]  # Get the actual job ID
+        operations = job_info[job]
+        machine_sequence = list(operations.keys())
+        random.shuffle(machine_sequence)
+
+        for idx, machine in enumerate(machine_sequence):
+            solution[job_idx][idx] = machine
+
+    return solution
+
+def local_search(solution):
+    # Implement local search mechanisms if needed
+    return solution
+
+def calculate_makespan(solution, job_info):
+    num_jobs, num_machines = solution.shape
+    machine_time = [0] * num_machines
+
+    for job_idx in range(num_jobs):
+        job = list(job_info.keys())[job_idx]  # Get the actual job ID
+        operations = job_info[job]
+        for machine, processing_time in operations.items():
+            operation_time = processing_time
+            machine_time[machine - 1] += operation_time
+            if machine < num_machines:
+                machine_time[machine] = max(machine_time[machine], machine_time[machine - 1])
+
+    return max(machine_time)
+
+def update_pheromones(pheromones, solutions, evaporation_rate, q):
+    for solution, makespan in solutions:
+        delta_pheromones = q / makespan
+        pheromones += delta_pheromones
+    pheromones *= evaporation_rate
+
+def ant_colony(num_ants, num_iterations, job_info, num_machines):
+    pheromones = initialize_pheromones(len(job_info), num_machines)
+    best_solution = None
+    best_makespan = float('inf')
+
+    for iteration in range(num_iterations):
+        solutions = []
+
+        for ant in range(num_ants):
+            solution = construct_solution(job_info, num_machines, pheromones)
+            solution = local_search(solution)
+            makespan = calculate_makespan(solution, job_info)
+            solutions.append((solution, makespan))
+
+            if makespan < best_makespan:
+                best_solution = solution
+                best_makespan = makespan
+
+        update_pheromones(pheromones, solutions, evaporation_rate=0.5, q=1.0)
+
+    return best_solution, best_makespan
+
+# Example usage:
+num_ants = 10
+num_iterations = 100
+num_machines = 2
+job_info = {'J1': {1: 2, 2: 3},
+            'J2': {1: 3, 2: 4},
+            'J3': {1: 3, 2: 2}}
+
+best_solution, best_makespan = ant_colony(num_ants, num_iterations, job_info, num_machines)
+
+print("Best solution:", best_solution)
+print("Best makespan:", best_makespan)
