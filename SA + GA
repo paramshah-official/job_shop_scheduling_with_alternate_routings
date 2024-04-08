@@ -1,0 +1,177 @@
+import numpy as np
+
+
+# In[2]:
+
+
+J = 2
+O = 3
+M = 6
+PTM = [[2, 3, 4, 10, 10, 10],
+       [10, 3, 10, 2, 4, 10],
+       [1, 4, 5, 10, 10, 10],
+       [3, 10, 5, 10, 2, 10],
+       [4, 3, 10, 10, 6, 10],
+       [10, 10, 4, 10, 7, 11]]
+
+
+# In[3]:
+
+
+pop_size=20
+Crossover_rate=1
+mutation=0.01
+termination=100
+
+
+# In[4]:
+
+
+def fitness_value(assignment, sequence):
+    value = [0 for i in range(M)]
+    last_job = [0 for i in range(M)]
+    
+    seq=[]
+    for i in range(len(sequence)):
+        seq.append([sequence[i], i])
+    seq.sort(key=lambda x: x[0])
+    
+    for i in range(len(seq)):
+        job=int(seq[i][1]/O)-1
+        value[assignment[seq[i][1]]-1]=PTM[seq[i][1]][assignment[seq[i][1]]-1]+max(last_job[job], value[assignment[seq[i][1]]-1])
+        last_job[job]=last_job[job]+PTM[seq[i][1]][assignment[seq[i][1]]-1]
+        
+    return max(value)
+
+#fitness_value([1, 5, 3, 3, 2, 5], [1, 3, 4, 2, 5, 6])
+#fitness_value([3, 5, 1, 5, 2, 3], [1, 3, 4, 2, 5, 6])
+
+
+# In[5]:
+
+
+def simulated_annealing(assignment, sequence):
+    To = 100
+    Tf = -100
+    N = 50
+    C = 10
+    while (To>Tf):
+        for i in range(N):
+            new_assignment=[]
+            for j in assignment:
+                new_assignment.append(j)
+            np.random.shuffle(new_assignment)
+            
+            if fitness_value(new_assignment, sequence)<fitness_value(assignment, sequence):
+                for _ in range(len(assignment)):
+                    assignment[_]=new_assignment[_]
+            else:
+                new_fitness = fitness_value(new_assignment, sequence)
+                curr_fitness = fitness_value(assignment, sequence)
+                val = math.exp((curr_fitness - new_fitness) / To)
+                r = np.random.uniform(0,1)
+                
+                if r < val:
+                    for _ in range(len(assignment)):
+                    assignment[_]=new_assignment[_]
+        To=To-C
+    return assignment
+
+#simulated_annealing([1, 2, 3, 3, 5, 5], [1, 3, 4, 2, 5, 6])
+
+
+# In[6]:
+
+
+def repair_sequence(sequence):
+    for i in range(0, J*O, O):
+        sequence[i:i+O] = sorted(sequence[i:i+O])
+    return sequence
+#repair_sequence([1, 4, 2, 5, 2, 4])
+
+
+# In[7]:
+
+
+def cross_over(parent1, parent2):
+    L=J*O
+    crossover_P = np.random.randint(1, L-1)
+    offspr1_C = parent1[0][:crossover_P] + parent2[0][crossover_P:]
+    offspr2_C = parent2[0][:crossover_P] + parent1[0][crossover_P:]
+    offspr1_S = parent1[1][:crossover_P] + parent2[1][crossover_P:]
+    offspr2_S = parent2[1][:crossover_P] + parent1[1][crossover_P:]
+    Children=[]
+    Children.append([offspr1_C, offspr1_S])
+    Children.append([offspr2_C, offspr2_S])
+    return Children
+
+cross_over([[1, 2, 3, 3, 5, 5], [1, 3, 4, 2, 5, 6]], [[3, 5, 1, 5, 2, 3], [1, 3, 4, 2, 5, 6]])
+
+
+# In[8]:
+
+
+# Initial Population
+def initialization():
+    Assign_C = []
+    Seq_C = []
+    Parent=[]
+    for i in range(pop_size):
+        Assign_C.append(np.int_(np.random.uniform(1, M, J*O)))
+    for i in range(pop_size):
+        A = [i+1 for i in range(M)]
+        np.random.shuffle(A)
+        B=repair_sequence(A)
+        Seq_C.append(B)
+    for i in range(pop_size):
+        Parent.append([Assign_C[i].tolist(), Seq_C[i]])
+    #print(Parent)
+    return Parent
+#initialization()
+
+
+# In[9]:
+
+
+def parent_pool(children):
+    Assign_C=children[0]
+    Seq_C=children[1]
+    Parents=[]
+    for i in range(pop_size):
+        Assign_C[i]=simulated_annealing(Assign_C[i], Seq_C[i])
+        Parents.append([Assign_C[i].tolist(), Seq_C[i]])
+    return Parents
+
+
+# In[10]:
+
+
+def reproduction(Parents):
+    Childrens=[]
+    for i in range(pop_size):
+        for j in range(i, pop_size):
+            if i!=j:
+                Children = cross_over(Parents[i], Parents[j])
+                Childrens.append(Children[0])
+                Childrens.append(Children[1])
+    return Childrens
+
+
+# In[18]:
+
+
+_Parents=initialization()
+offspring = reproduction(_Parents)
+for i in range(len(offspring)):
+    offspring[i].append(fitness_value(offspring[i][0], offspring[i][1]))
+
+offspring.sort(key=lambda x: x[2])
+_Children=offspring[:pop_size] 
+_Children
+
+
+# In[ ]:
+
+
+n_gen=1
+while n_gen<termination:
