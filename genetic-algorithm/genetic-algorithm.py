@@ -1,6 +1,12 @@
 import numpy as np
 import random
 import parameters
+import gen_test
+
+no_machines = gen_test.num_machines
+num_machines = no_machines
+jobs_operations_dict = gen_test.jobs_operations_dict
+
 
 def repair_chromosome(chromosome, job_info):
     def repair_sequence(sequence):
@@ -64,7 +70,7 @@ def calculate_fitness(chromosome, job_info):
     time_taken = 0 # fitness
     assignment = chromosome['assignment']
     sequence = chromosome['sequence']
-    no_machines = 2
+    # no_machines = 2
 
     machine_completion_time = {i + 1: 0 for i in range(no_machines)}
     operation_completion_time = {}
@@ -272,6 +278,9 @@ def genetic_algorithm(job_info, num_machines):
         # Selection
         population = elitist_selection(population)  # Example: keeping 2 elites
 
+        if (generation) % 100 == 0:
+            print(f"Generation {generation}: {population[0]['fitness']}")
+
         # Crossover
         for ind in range(0, len(population) - 1, 2):
             if random.random() < crossover_rate:
@@ -294,12 +303,47 @@ def genetic_algorithm(job_info, num_machines):
 
 
 
-# Example usage
-jobs_operations_dict = {'J1': [{1: 2}, {1: 3, 2: 2}],
-                        'J2': [{2: 1}, {1: 3}, {1: 4, 2: 2}],
-                        'J3': [{1: 3, 2: 1}],
-                        }
-num_machines = 2
+# Example usage 1
+# jobs_operations_dict = {'J1': [{1: 2}, {1: 3, 2: 2}],
+#                         'J2': [{2: 1}, {1: 3}, {1: 4, 2: 2}],
+#                         'J3': [{1: 3, 2: 1}],
+#                         }
+# num_machines = 2
+
+# num_machines = 2
+#
+# # Define the job operations dictionary
+# jobs_operations_dict = {
+#     'J1': [{1: 2}, {1: 3, 2: 2}],
+#     'J2': [{2: 1}, {1: 3}, {1: 4, 2: 2}],
+#     'J3': [{1: 3, 2: 1}],
+#     'J4': [{2: 2}, {1: 2, 2: 3}, {1: 4}],
+#     'J5': [{1: 1}, {2: 3}, {1: 2, 2: 2}],
+#     'J6': [{2: 2}, {1: 3}, {2: 1}],
+#     'J7': [{1: 2, 2: 1}, {1: 2}, {2: 3}],
+#     'J8': [{1: 3}, {2: 2}, {1: 2, 2: 3}],
+#     'J9': [{1: 1}, {2: 2}, {1: 3}],
+#     'J10': [{2: 2}, {1: 2}, {2: 1}]
+# }
+
+# num_machines = 4
+#
+# # Define the job operations dictionary with machines as keys and time taken as values
+# jobs_operations_dict = {
+#     'J1': [{1: 2}, {1: 3, 2: 2}, {2: 3}, {3: 4}, {4: 5}],
+#     'J2': [{2: 1}, {1: 3}, {1: 4, 2: 2}, {2: 3}, {3: 4}, {4: 5}],
+#     'J3': [{1: 3, 2: 1}, {2: 2}, {1: 2}, {2: 1}, {3: 4}, {4: 3}],
+#     'J4': [{2: 2}, {1: 2, 2: 3}, {1: 4}, {2: 3}, {3: 4}, {4: 5}],
+#     'J5': [{1: 1}, {2: 3}, {1: 2, 2: 2}, {2: 2}, {3: 4}, {4: 3}],
+#     'J6': [{2: 2}, {1: 3}, {2: 1}, {3: 4}, {4: 5}],
+#     'J7': [{1: 2, 2: 1}, {1: 2}, {2: 3}, {1: 3}, {3: 4}, {4: 5}],
+#     'J8': [{1: 3}, {2: 2}, {1: 2, 2: 3}, {2: 2}, {3: 4}, {4: 3}],
+#     'J9': [{1: 1}, {2: 2}, {1: 3}, {1: 2}, {3: 4}, {4: 5}],
+#     'J10': [{2: 2}, {1: 2}, {2: 1}, {3: 4}, {4: 3}],
+#     'J11': [{1: 2}, {2: 3}, {1: 3, 2: 2}, {2: 1}, {3: 4}, {4: 5}],
+#     'J12': [{2: 1}, {1: 2}, {1: 3, 2: 2}, {2: 2}, {3: 4}, {4: 3}],
+#     'J13': [{1: 3, 2: 1}, {2: 2}, {1: 2}, {2: 1}, {3: 4}, {4: 5}],
+#     'J14': [{1: 2}, {1: 3}, {2: 1}, {1: 4}, {3: 4}, {4: 5}]}
 
 # Assuming operations_data and job_machine_constraints are defined
 best_solution, best_fitness = genetic_algorithm(jobs_operations_dict, num_machines)
